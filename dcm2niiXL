@@ -1,0 +1,64 @@
+#! /bin/bash
+# Run multiple instances of dcm2niix in parallel
+#Example
+# ./dcm2niiXL -f %p_%s -i y -z y -o ~/tst/out ~/dcm_qa/In/
+
+#SETTINGS
+# set numCores to 0 for autodetect, otherwise number of threads desired
+numCores=0
+# set number of depth of subdirectories to search
+searchDepth=10
+
+#CHECK INPUT
+#get last input argument https://stackoverflow.com/questions/1853946/getting-the-last-argument-passed-to-a-shell-script
+for lastArg; do true; done
+if [ "$lastArg" == "" ];then
+   echo "Error: no input folder provided"
+   exit 1
+fi
+#CHECK NUMBER OF THREADS
+if [ $numCores -lt 1 ] ; then
+	numCores=$(getconf _NPROCESSORS_ONLN)
+	if [ $numCores -lt 1 ] ; then
+		echo "unable to detect cores"
+		exit 1
+	fi
+fi
+echo "dcm2niix running $numCores threads"
+#FIND EXECUTABLE
+scriptdir=$(dirname $0)
+if [ "$scriptdir" = "." ]; then
+	scriptdir=$(pwd)
+fi
+unameOut="$(uname -s)"
+case "${unameOut}" in
+    Linux*)     exe=($scriptdir)/dcm2niixLinux;;
+    Darwin*)    exe=$scriptdir/dcm2niixMacOS;;
+esac
+if [ ! -e $exe ]
+then
+    echo "Error: Unable to find $exe"
+    exit 1
+fi
+#REMOVE LAST ARGUMENT
+set -- "${@:1:$(($#-1))}"
+#PROCESS FOLDERS
+n=1
+for d in $(find $lastArg -maxdepth $searchDepth -type d)
+do
+	echo $exe -d 0 "$@" "$d"
+	$exe -d 0 "$@" "$d" &
+	nPID=`jobs -pr | wc  -l $f`
+	while [ $nPID -ge $numCores ]; do
+		sleep 0.4
+		nPID=`jobs -pr | wc  -l`
+	done
+	n=`expr $n + 1`
+done
+%pause until everything is done
+while [ $nPID -ge 1 ]; do
+	sleep 0.4
+	nPID=`jobs -pr | wc  -l`
+done
+
+exit 0
