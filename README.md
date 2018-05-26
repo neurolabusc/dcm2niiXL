@@ -7,7 +7,7 @@ dcm2niiXL is a script for running [dcm2niix](https://github.com/rordenlab/dcm2ni
 You use [dcm2niiXL just like dcm2niix](https://www.nitrc.org/plugins/mwiki/index.php/dcm2nii:MainPage#General_Usage).
 
 ```
-./dcm2niix -f %p_%s -i y -z y -o ~/tst/out ~/dcm_qa/In/
+dcm2niiXL -f %p_%s -i y -z y -o ~/tst/out ~/dcm_qa/In/
 ```
 
 ## Installation
