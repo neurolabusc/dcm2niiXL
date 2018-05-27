@@ -10,6 +10,11 @@ numCores=0
 searchDepth=10
 
 #CHECK INPUT
+if [ $# -lt 1 ]; then
+	echo "Please call this script with input arguments"
+	echo " $0 -f %p_%s -i y -z y -o "~/tst/out" "~/dcm_qa/In/""
+	exit 1
+fi
 #get last input argument https://stackoverflow.com/questions/1853946/getting-the-last-argument-passed-to-a-shell-script
 for lastArg; do true; done
 if [ "$lastArg" == "" ];then
@@ -32,7 +37,7 @@ if [ "$scriptdir" = "." ]; then
 fi
 unameOut="$(uname -s)"
 case "${unameOut}" in
-    Linux*)     exe=($scriptdir)/dcm2niixLinux;;
+    Linux*)     exe=$scriptdir/dcm2niixLinux;;
     Darwin*)    exe=$scriptdir/dcm2niixMacOS;;
 esac
 if [ ! -e $exe ]
