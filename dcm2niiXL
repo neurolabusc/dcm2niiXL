@@ -48,12 +48,15 @@ fi
 #REMOVE LAST ARGUMENT
 set -- "${@:1:$(($#-1))}"
 #PROCESS FOLDERS
+# n.b. limit number of active jobs
+# https://stackoverflow.com/questions/1537956/bash-limit-the-number-of-concurrent-jobs?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
+# https://stackoverflow.com/questions/1131484/wait-for-bash-background-jobs-in-script-to-be-finished?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
 n=1
 for d in $(find $lastArg -maxdepth $searchDepth -type d)
 do
 	echo $exe -d 0 "$@" "$d"
 	$exe -d 0 "$@" "$d" &
-	nPID=`jobs -pr | wc  -l $f`
+	nPID=`jobs -pr | wc  -l`
 	while [ $nPID -ge $numCores ]; do
 		sleep 0.4
 		nPID=`jobs -pr | wc  -l`
@@ -61,6 +64,7 @@ do
 	n=`expr $n + 1`
 done
 %pause until everything is done
+nPID=`jobs -pr | wc  -l`
 while [ $nPID -ge 1 ]; do
 	sleep 0.4
 	nPID=`jobs -pr | wc  -l`

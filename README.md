@@ -25,6 +25,7 @@ This script is for advanced users and specific situations. You should read this 
  - dcm2niiXL is a shell script. It runs on MacOS and Linux, but does not support Windows. It leverages multiple threads, so it benefits from a CPU with multiple cores.
  - You can use all the normal dcm2niix options with the exception of the "-d" (maximum directory search depth) parameter. You can edit the first couple lines of the dcm2niiXL script if you wish to change this. In essence, dcm2niiXL will spawn one copy of dcm2niix for every folder, and each instance is limited to a search depth of 0 (it only converts the local folder).
   - It is generally a good idea to specify an output folder ("-o ~/myOutputDir"), otherwise each instance of dcm2niix will save files in their local input folder.
+  - Since each folder is processed independently and multiple folders are processed in parallel, you should ensure your input data does not have naming conflicts (e.g. images from two different people that are in two different folders will both be named 'T1.nii'). The classic single-threaded dcm2niix detects naming conflicts and will save files appropriately (e.g. "T1.nii', 'T1a.nii'), but it is theoretically possible (though unlikely) for this process to be disrupted if two instances are running simultaneously.
 
 ## Compiling dcm2niix for accelerated gzip creation
 
