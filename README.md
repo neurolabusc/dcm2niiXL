@@ -20,27 +20,39 @@ dcm2niiXL is a simple shell script that calls specially compiled versions of dcm
 
 This script is for advanced users and specific situations. You should read this section carefully. In many situations dcm2niix will be faster, and it is always less complicated.
 
-- dcm2niiXL comes with a special build of dcm2niix, which uses the [accelerated single-threaded gzip](https://github.com/cloudflare/zlib) which requires Sandy Bridge or later CPUs (released in 2011). In contrast, the regular build of dcm2niix uses pigz for parallel gzip compression. The disadvantage of pigz is that the data must be saved to disk prior to compression (which can be slow), and multiple threads are used which can hinder running multiple instances of dcm2niix simultaneously.
- - dcm2niiXL spawns a separate instance of dcm2niix for every subfolder. Therefore, if you provide the input folder "/dcm" which contains images in the folders "/dcm/s1", "/dcm/s2" and "/dcm/s3", a total of 3 instances will be generated. This is more efficient than the classic method of running one instance that searches all the folders at once if you have large datasets. However, dcm2niiXL will be slower for small datasets. It also assumes your storage system is separating DICOM images into different folders (e.g. one per participant). Finally, in ancient times GE scanners would put a maximum of 1000 slices into a single folder and therefore would create multiple folders for a single series if it included more than 1000 slices. If you have these archival datasets, you should use the traditional dcm2niix.
+ - dcm2niiXL comes with a special build of dcm2niix, which uses the [accelerated single-threaded gzip](https://github.com/cloudflare/zlib) which requires Sandy Bridge or later CPUs (released in 2011). In contrast, the regular build of dcm2niix uses pigz for parallel gzip compression. The disadvantage of pigz is that the data must be saved to disk prior to compression (which can be slow), and multiple threads are used which can hinder running multiple instances of dcm2niix simultaneously.
+ - dcm2niiXL spawns a separate instance of dcm2niix for every subfolder. Therefore, if you provide the input folder "/dcm" which contains images in the folders "/dcm/s1", "/dcm/s2" and "/dcm/s3", a total of 3 instances will be generated. This is more efficient than the classic method of running one instance that searches all the folders at once if you have large datasets. However, dcm2niiXL will be slower for small datasets. It also assumes your storage system is separating DICOM images into different folders (e.g. one per participant).
+ - dcm2niiXL assumes that ALL the files for an image are contained in a single folder. If this is not the case, you should use the standard dcm2niix to combine images across folders. For example, Philips classic data is typically stored with a maximum of 2048 2D slices per folder. Any session where more than 2048 slices are acquired may be stored in multiple folders. For this reason, Philips users may want to export their data as enhanced DICOM format.
  - dcm2niiXL is a shell script. It runs on MacOS and Linux, but does not support Windows. It leverages multiple threads, so it benefits from a CPU with multiple cores.
  - You can use all the normal dcm2niix options with the exception of the "-d" (maximum directory search depth) parameter. You can edit the first couple lines of the dcm2niiXL script if you wish to change this. In essence, dcm2niiXL will spawn one copy of dcm2niix for every folder, and each instance is limited to a search depth of 0 (it only converts the local folder).
-  - It is generally a good idea to specify an output folder ("-o ~/myOutputDir"), otherwise each instance of dcm2niix will save files in their local input folder.
-  - Since each folder is processed independently and multiple folders are processed in parallel, you should ensure your input data does not have naming conflicts (e.g. images from two different people that are in two different folders will both be named 'T1.nii'). The classic single-threaded dcm2niix detects naming conflicts and will save files appropriately (e.g. "T1.nii', 'T1a.nii'), but it is theoretically possible (though unlikely) for this process to be disrupted if two instances are running simultaneously.
+ - It is generally a good idea to specify an output folder ("-o ~/myOutputDir"), otherwise each instance of dcm2niix will save files in their local input folder.
+ - Since each folder is processed independently and multiple folders are processed in parallel, you should ensure your input data does not have naming conflicts (e.g. images from two different people that are in two different folders will both be named 'T1.nii'). The classic single-threaded dcm2niix detects naming conflicts and will save files appropriately (e.g. "T1.nii', 'T1a.nii'), but it is theoretically possible (though unlikely) for this process to be disrupted if two instances are running simultaneously.
+
+
+## A Simpler Alternative: Parallel Compression
+
+The bulk of this page describes running multiple single-threaded instances of dcm2niix on a dataset. This requires the user to make sure that the data is carefully sorted so that each thread processes a whole dataset. An easier approach is to ensure you have fast parallel compression. The rationale is simple: if you create compressed .nii.gz images the software will spend most of its time compressing your data rather than converting your data. Therefore, a good strategy is to use the parallel pigz to accelerate the compression stage. The data below illustrates this on a six core (12 thread) computer where the single-threaded cloud-flare library is ten times slower than saving raw data to disk, while pigz is just 3.2 times slower. In this test, we converted about an hours worth of MRI data. A slow spinning hard-disk was used (as is typical for servers). The raw data required 2.234 seconds to save, but in the table we have scaled everything relative to this time (so this uncompressed time is listed as 1).
+
+One consideration for optimal performance. Versions of dcm2niix from v1.0.20181225 include a new optimal compression option (`-z o`) for Unix computers. This requires you to have a version of pigz installed that is 2.3.4 or later. This option pipes data directly to pigz. In contrast, the conventional usage of pigz (`-z y`) saves the raw data to disk and has pigz read this data from disk to save a compressed version. This two-stage approach carries a huge penalty for slow disks.
+
+| Method                                         | Speed |
+| ---------------------------------------------- | ----- |
+| `-z n` (`n`o compression: raw .nii files)      |  1.0  |
+| `-z o` (`o`ptimal piped pigz)                  |  3.2  |
+| `-z y` (`y`es pigz)                            |  4.4  |
+| `-z i` (`i`nternal, compiled to cloudflare)    | 10.1  |
+| `-z i` (`i`nternal, compiled to zlib)          | 20.6  |
+
 
 ## Compiling dcm2niix for accelerated gzip creation
 
-Pre-compiled versions of dcm2niix with the cloudflare library are provided. However, if you wish, you can build your own.
-
-- [download, configure and make your cloudflare zlib library](https://github.com/cloudflare/zlib)
-- [dcm2niix](https://github.com/rordenlab/dcm2niix). Read the [compile page](https://github.com/rordenlab/dcm2niix/blob/master/COMPILE.md) for notes on a custom compile. Specifically, you will want to include the `-DmyDisableMiniZ` directive and include the path to your cloudflare zlib. One trick is to run the default build outlined on the dcm2niix homepage first: this will install OpenJPEG for you, which can be tricky. The compile notes also describe how to generate a version without OpenJPEG (though you will not be able to convert DICOM images that use the rare JPEG2000 transfer syntaxes). Here are examples, though your paths will be different:
-
-MacOS
+The following command should create a `dcm2niix` executable in the dcm2niix\build\bin folder that uses the accelerated cloudflare library.
 
 ```
-g++ -O3 -I. main_console.cpp nii_dicom.cpp nifti1_io_core.cpp nii_ortho.cpp nii_dicom_batch.cpp jpg_0XC3.cpp ujpeg.cpp nii_foreign.cpp -dead_strip -o dcm2niixMacOS -DmyDisableMiniZ -I/usr/local/include/openjpeg-2.1 /usr/local/lib/libopenjp2.a -I/Users/rorden/Documents/cocoa/zlib /Users/rorden/Documents/cocoa/zlib/libz.a
+git clone https://github.com/rordenlab/dcm2niix.git
+cd dcm2niix
+mkdir build && cd build
+cmake -DZLIB_IMPLEMENTATION=Cloudflare -DUSE_JPEGLS=ON -DUSE_OPENJPEG=ON ..
+make
 ```
 
-Linux
-```
-g++ -O3 -I. main_console.cpp nii_dicom.cpp nifti1_io_core.cpp nii_ortho.cpp nii_dicom_batch.cpp jpg_0XC3.cpp ujpeg.cpp nii_foreign.cpp -o dcm2niix -DmyDisableMiniZ -I~/zlib ~/zlib/libz.a -I/home/research/dcm2niix/build/include/openjpeg-2.1 /home/research/dcm2niix/build/lib/libopenjp2.a
-```
